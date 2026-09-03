@@ -20,6 +20,6 @@ exports.handler = async (event) => {
     return { statusCode: 200, body: JSON.stringify({ ok: true }) };
   } catch (e) {
     console.error(e);
-    return { statusCode: 500, body: 'error' };
+    return { statusCode: 500, body: 'error: ' + (e && e.message ? e.message : String(e)) };
   }
 };
