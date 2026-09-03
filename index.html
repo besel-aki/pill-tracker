@@ -483,8 +483,9 @@
       if(res.ok){
         showToast('通知の登録が完了しました');
       } else {
-        showToast('通知の登録に失敗しました(サーバー側)');
-        console.error('save-subscription responded', res.status, await res.text());
+        const errText = await res.text();
+        console.error('save-subscription responded', res.status, errText);
+        showToast('失敗: ' + errText.slice(0,80));
       }
     }catch(e){
       console.error('push subscribe failed', e);
