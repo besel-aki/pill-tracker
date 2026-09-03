@@ -8,7 +8,7 @@ webpush.setVapidDetails(
 );
 
 exports.config = {
-  schedule: '* * * * *'
+  schedule: '*/5 * * * *'
 };
 
 exports.handler = async () => {
@@ -16,13 +16,16 @@ exports.handler = async () => {
   const { blobs } = await store.list();
 
   const jst = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Tokyo' }));
-  const hhmm = String(jst.getHours()).padStart(2, '0') + ':' + String(jst.getMinutes()).padStart(2, '0');
+  const currentMinutes = jst.getHours() * 60 + jst.getMinutes();
   const todayStr = `${jst.getFullYear()}-${String(jst.getMonth() + 1).padStart(2, '0')}-${String(jst.getDate()).padStart(2, '0')}`;
 
   for (const b of blobs) {
     const record = await store.get(b.key, { type: 'json' });
     if (!record) continue;
-    if (record.notifyTime === hhmm && record.lastSentDate !== todayStr) {
+    const [th, tm] = (record.notifyTime || '00:00').split(':').map(Number);
+    const targetMinutes = th * 60 + tm;
+    const diff = Math.abs(currentMinutes - targetMinutes);
+    if (diff <= 3 && record.lastSentDate !== todayStr) {
       try {
         await webpush.sendNotification(
           record.subscription,
