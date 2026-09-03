@@ -1,5 +1,5 @@
 const webpush = require('web-push');
-const { getStore } = require('@netlify/blobs');
+const { getStore, connectLambda } = require('@netlify/blobs');
 
 webpush.setVapidDetails(
   'mailto:pill-tracker-app@example.com',
@@ -11,7 +11,8 @@ exports.config = {
   schedule: '*/5 * * * *'
 };
 
-exports.handler = async () => {
+exports.handler = async (event) => {
+  connectLambda(event);
   const store = getStore('pill-tracker-subs');
   const { blobs } = await store.list();
 
