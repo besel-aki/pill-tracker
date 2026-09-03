@@ -1,3 +1,4 @@
+const { schedule } = require('@netlify/functions');
 const webpush = require('web-push');
 const { getStore, connectLambda } = require('@netlify/blobs');
 
@@ -7,11 +8,7 @@ webpush.setVapidDetails(
   process.env.VAPID_PRIVATE_KEY
 );
 
-exports.config = {
-  schedule: '*/5 * * * *'
-};
-
-exports.handler = async (event) => {
+const runReminders = async (event) => {
   connectLambda(event);
   const store = getStore('pill-tracker-subs');
   const { blobs } = await store.list();
@@ -44,3 +41,5 @@ exports.handler = async (event) => {
   }
   return { statusCode: 200, body: 'ok' };
 };
+
+exports.handler = schedule('*/5 * * * *', runReminders);
