@@ -6,6 +6,11 @@ self.addEventListener('activate', (e) => {
   e.waitUntil(self.clients.claim());
 });
 
+self.addEventListener('fetch', (e) => {
+  // 特別なオフライン処理はしていませんが、Service Workerが
+  // fetchイベントを持つことでインストール判定が安定します。
+});
+
 self.addEventListener('push', (event) => {
   let payload = { title: 'ピルトラッカー', body: 'お薬の時間です。' };
   try{

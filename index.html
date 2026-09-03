@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ピルトラッカー</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#7C5CBF">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
@@ -44,7 +48,7 @@
     min-height:100vh;
     display:flex;
     flex-direction:column;
-    padding-bottom:calc(100px + env(safe-area-inset-bottom));
+    padding-bottom:calc(140px + env(safe-area-inset-bottom));
     position:relative;
   }
   header.top{
@@ -277,6 +281,7 @@
     font-weight:700;
     font-size:14px;
     cursor:pointer;
+    margin-bottom:20px;
   }
 
   /* ---------- Bottom nav ---------- */
@@ -470,11 +475,17 @@
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
         });
       }
-      await fetch('/.netlify/functions/save-subscription', {
+      const res = await fetch('/.netlify/functions/save-subscription', {
         method:'POST',
         headers:{ 'Content-Type':'application/json' },
         body: JSON.stringify({ id:getDeviceId(), subscription:sub.toJSON(), notifyTime:data.settings.notifyTime })
       });
+      if(res.ok){
+        showToast('通知の登録が完了しました');
+      } else {
+        showToast('通知の登録に失敗しました(サーバー側)');
+        console.error('save-subscription responded', res.status, await res.text());
+      }
     }catch(e){
       console.error('push subscribe failed', e);
       showToast('プッシュ通知の登録に失敗しました');
