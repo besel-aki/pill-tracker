@@ -11,7 +11,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
-<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
   :root{
     --bg:#FCFBFD;
@@ -54,6 +53,11 @@
   header.top{
     padding:28px 24px 8px;
   }
+  header.top .header-row{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+  }
   header.top .date{
     font-size:13px;
     color:var(--ink-soft);
@@ -64,6 +68,16 @@
     font-weight:700;
     font-size:22px;
     margin:2px 0 0;
+  }
+  .help-btn{
+    width:34px; height:34px; border-radius:50%;
+    border:1px solid var(--line);
+    background:var(--surface);
+    color:var(--violet);
+    font-weight:700;
+    font-size:15px;
+    cursor:pointer;
+    flex:none;
   }
   main{
     padding:12px 24px 24px;
@@ -321,14 +335,103 @@
     word-break:break-word;
   }
   .toast.show{ opacity:1; }
+
+  /* ---------- Install banner ---------- */
+  .install-banner{
+    position:fixed;
+    left:50%; bottom:calc(92px + env(safe-area-inset-bottom)); transform:translateX(-50%);
+    width:calc(100% - 32px); max-width:428px;
+    background:var(--ink);
+    color:#fff;
+    border-radius:var(--radius-md);
+    padding:14px 16px;
+    display:none;
+    align-items:flex-start;
+    gap:10px;
+    z-index:40;
+    box-shadow:0 8px 24px rgba(0,0,0,.2);
+  }
+  .install-banner.show{ display:flex; }
+  .install-banner-text{ display:flex; flex-direction:column; gap:4px; flex:1; }
+  .install-banner-text strong{ font-size:13.5px; }
+  .install-banner-text span{ font-size:12.5px; color:#D8D4E0; line-height:1.6; }
+  .install-banner-close{
+    background:none; border:none; color:#fff; font-size:18px; line-height:1;
+    cursor:pointer; flex:none; padding:2px;
+  }
+
+  /* ---------- Help overlay ---------- */
+  .help-overlay{
+    position:fixed; inset:0;
+    background:rgba(33,30,39,.45);
+    z-index:70;
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+  }
+  .help-overlay.show{ display:flex; }
+  .help-panel{
+    width:100%; max-width:460px;
+    max-height:80vh;
+    background:var(--surface);
+    border-radius:24px 24px 0 0;
+    padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+    display:flex;
+    flex-direction:column;
+  }
+  .help-header{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:14px;
+  }
+  .help-title{
+    font-family:'Zen Maru Gothic',sans-serif;
+    font-weight:700; font-size:17px;
+  }
+  .help-close{
+    width:32px; height:32px; border-radius:50%;
+    border:1px solid var(--line); background:var(--surface);
+    color:var(--ink-soft); font-size:16px; cursor:pointer;
+  }
+  .help-tabs{
+    display:flex; gap:6px; overflow-x:auto;
+    margin-bottom:16px;
+    padding-bottom:2px;
+  }
+  .help-tab-btn{
+    flex:none;
+    padding:8px 14px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:var(--surface);
+    color:var(--ink-soft);
+    font-size:12.5px;
+    font-weight:700;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .help-tab-btn.active{
+    background:var(--violet); border-color:var(--violet); color:#fff;
+  }
+  .help-body{ overflow-y:auto; }
+  .help-page p{
+    font-size:13.5px;
+    line-height:1.8;
+    color:var(--ink);
+    margin:0 0 12px;
+  }
 </style>
 </head>
 <body>
 <div id="app">
 
   <header class="top">
-    <div class="date" id="todayLabel"></div>
-    <h1>ピルトラッカー</h1>
+    <div class="header-row">
+      <div>
+        <div class="date" id="todayLabel"></div>
+        <h1>ピルトラッカー</h1>
+      </div>
+      <button class="help-btn" id="btnHelp" aria-label="使い方">？</button>
+    </div>
   </header>
 
   <!-- HOME -->
@@ -392,7 +495,7 @@
   <main id="view-settings" hidden>
     <div class="set-card">
       <div class="label">毎日の通知時刻</div>
-      <input type="time" id="notifyTime" value="21:00">
+      <input type="time" id="notifyTime" value="21:00" step="300">
       <div class="desc">この時刻になったら服薬をお知らせします。</div>
     </div>
     <div class="set-card">
@@ -403,16 +506,6 @@
         </div>
         <button class="switch" id="notifyToggle"><span class="knob"></span></button>
       </div>
-    </div>
-    <div class="set-card">
-      <div class="toggle-line">
-        <div>
-          <div class="label" style="margin-bottom:2px;">Googleドライブと同期</div>
-          <div class="desc" id="driveStatus" style="margin-top:0;">未連携</div>
-        </div>
-        <button class="pill-btn primary" id="btnDriveConnect" style="padding:10px 16px; font-size:13px;">連携する</button>
-      </div>
-      <div class="desc" style="margin-top:10px;">あなたのGoogleアカウントの非公開領域(他のファイルからは見えない場所)にバックアップします。Cookie削除や機種変更をしても、Googleでログインし直せば記録が復元されます。</div>
     </div>
     <div class="set-card">
       <div class="label" style="margin-bottom:4px;">バックアップ</div>
@@ -448,6 +541,50 @@
   </nav>
 
   <div class="toast" id="toast"></div>
+
+  <div class="install-banner" id="installBanner">
+    <div class="install-banner-text">
+      <strong>アプリとして追加すると安心です</strong>
+      <span>ブラウザのメニューから「アプリをインストール」または「ホーム画面に追加」を選ぶと、データが消えにくくなります。</span>
+    </div>
+    <button class="install-banner-close" id="installBannerClose" aria-label="閉じる">×</button>
+  </div>
+
+  <div class="help-overlay" id="helpOverlay">
+    <div class="help-panel">
+      <div class="help-header">
+        <div class="help-title">使い方</div>
+        <button class="help-close" id="helpClose" aria-label="閉じる">×</button>
+      </div>
+      <div class="help-tabs">
+        <button class="help-tab-btn active" data-help="home">ホーム</button>
+        <button class="help-tab-btn" data-help="calendar">カレンダー</button>
+        <button class="help-tab-btn" data-help="settings">設定</button>
+        <button class="help-tab-btn" data-help="rule">休薬のルール</button>
+      </div>
+      <div class="help-body">
+        <div class="help-page" data-help-page="home">
+          <p>「今日、飲んだ」を押すと、今日の服用を記録します。</p>
+          <p>「出血あり」を押すと、今日の出血を記録します。</p>
+          <p>リングは今の周期の日数です。服用期間中は「◯日目 / 120」、休薬期間中は「◯日目 / 4」と表示されます。</p>
+          <p>休薬期間中は「今日、飲んだ」ボタンは押せなくなります(出血の記録はできます)。</p>
+        </div>
+        <div class="help-page" data-help-page="calendar" hidden>
+          <p>日付をタップすると、その日の服用・出血の記録をあとから修正できます。</p>
+          <p>紫の点は服用、ピンクの点は出血があった日です。背景がグレーの日は休薬期間です。</p>
+        </div>
+        <div class="help-page" data-help-page="settings" hidden>
+          <p>通知時刻を設定すると、その時刻(5分刻み)にお知らせが届きます。</p>
+          <p>「バックアップ」から、記録をファイルに書き出したり、別の端末で読み込んだりできます。機種変更の前に書き出しておくと安心です。</p>
+        </div>
+        <div class="help-page" data-help-page="rule" hidden>
+          <p>120日連続で服用すると、翌日から4日間の休薬期間に入ります。</p>
+          <p>出血が3日連続すると、その翌日から4日間の休薬期間に入ります。</p>
+          <p>過去の記録をカレンダーで修正すると、この判定も自動で計算し直されます。</p>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -498,12 +635,6 @@
       showToast('プッシュ通知の登録に失敗しました');
     }
   }
-  const GOOGLE_CLIENT_ID = '983078509296-tlfhk2kpqh10eknrrikkvfc5e2hvjkq4.apps.googleusercontent.com';
-  const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
-  const DRIVE_FILE_NAME = 'pill-tracker-data.json';
-  let tokenClient = null;
-  let accessToken = null;
-  let driveFileId = null;
   let data = { records: {}, settings: { notifyTime: '21:00', notifyEnabled: false, lastNotifiedDate: null } };
   let selectedDate = null;
   let calCursor = new Date();
@@ -530,10 +661,6 @@
   async function save(){
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
     catch(e){ console.error('save failed', e); }
-    if(accessToken){
-      try{ driveFileId = await driveUpload(driveFileId, data); }
-      catch(e){ console.error('drive save failed', e); }
-    }
   }
 
   function simulate(){
@@ -758,7 +885,13 @@
   });
 
   document.getElementById('notifyTime').addEventListener('change', function(){
-    data.settings.notifyTime = this.value;
+    // ブラウザによってはstepを無視できてしまうため、念のため5分単位に丸める
+    const [h,m] = this.value.split(':').map(Number);
+    const roundedM = Math.round(m/5)*5;
+    const roundedH = (h + Math.floor(roundedM/60)) % 24;
+    const finalTime = String(roundedH).padStart(2,'0') + ':' + String(roundedM%60).padStart(2,'0');
+    this.value = finalTime;
+    data.settings.notifyTime = finalTime;
     save(); renderHome();
     if(data.settings.notifyEnabled) subscribeForPush();
   });
@@ -777,7 +910,17 @@
     data.settings.notifyEnabled = !data.settings.notifyEnabled;
     this.classList.toggle('on');
     save(); renderHome();
-    if(data.settings.notifyEnabled) subscribeForPush();
+    if(data.settings.notifyEnabled){
+      subscribeForPush();
+    } else {
+      try{
+        await fetch('/.netlify/functions/save-subscription', {
+          method:'DELETE',
+          headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ id:getDeviceId() })
+        });
+      }catch(e){ console.error('unsubscribe failed', e); }
+    }
   });
   document.getElementById('resetBtn').addEventListener('click', async ()=>{
     if(!confirm('すべての記録を消去します。よろしいですか？')) return;
@@ -828,144 +971,6 @@
     e.target.value = '';
   });
 
-  function stableStringify(obj){
-    const sorted = {};
-    Object.keys(obj||{}).sort().forEach(k=>{ sorted[k] = obj[k]; });
-    return JSON.stringify(sorted);
-  }
-
-  /* ---------- Google Drive sync ---------- */
-  function updateDriveUI(){
-    const statusEl = document.getElementById('driveStatus');
-    const btnEl = document.getElementById('btnDriveConnect');
-    if(accessToken){
-      statusEl.textContent = '連携済み';
-      btnEl.textContent = '同期し直す';
-    } else if(data.settings.driveConnected){
-      statusEl.textContent = '未連携（再ログインが必要です）';
-      btnEl.textContent = '連携する';
-    } else {
-      statusEl.textContent = '未連携';
-      btnEl.textContent = '連携する';
-    }
-  }
-
-  async function driveFindFile(){
-    const res = await fetch('https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&fields=files(id,name)&pageSize=10', {
-      headers:{ Authorization:'Bearer '+accessToken }
-    });
-    if(!res.ok) throw new Error('drive list failed');
-    const j = await res.json();
-    return (j.files||[]).find(f=>f.name===DRIVE_FILE_NAME) || null;
-  }
-  async function driveDownload(fileId){
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-      headers:{ Authorization:'Bearer '+accessToken }
-    });
-    if(!res.ok) throw new Error('drive download failed');
-    return await res.json();
-  }
-  async function driveUpload(existingFileId, obj){
-    const boundary = 'pilltrackerboundary';
-    const metadata = existingFileId ? {} : { name: DRIVE_FILE_NAME, parents:['appDataFolder'] };
-    const body =
-      `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n`+
-      `--${boundary}\r\nContent-Type: application/json\r\n\r\n${JSON.stringify(obj)}\r\n`+
-      `--${boundary}--`;
-    const url = existingFileId
-      ? `https://www.googleapis.com/upload/drive/v3/files/${existingFileId}?uploadType=multipart`
-      : `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart`;
-    const res = await fetch(url, {
-      method: existingFileId ? 'PATCH' : 'POST',
-      headers:{ Authorization:'Bearer '+accessToken, 'Content-Type':`multipart/related; boundary=${boundary}` },
-      body
-    });
-    if(!res.ok) throw new Error('drive upload failed');
-    const j = await res.json();
-    return j.id;
-  }
-
-  async function syncWithDrive(){
-    if(!accessToken) return;
-    try{
-      const f = await driveFindFile();
-      if(f){
-        driveFileId = f.id;
-        const remote = await driveDownload(f.id);
-        const localCount = Object.keys((data.records)||{}).length;
-        const remoteCount = Object.keys((remote.records)||{}).length;
-        const sameContent = stableStringify(remote.records||{}) === stableStringify(data.records||{});
-        if(sameContent){
-          // already in sync
-        } else if(remoteCount > 0 && localCount === 0){
-          data = remote;
-          if(!data.settings) data.settings = { notifyTime:'21:00', notifyEnabled:false, lastNotifiedDate:null };
-          data.settings.driveConnected = true;
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-          simulate();
-          document.getElementById('notifyTime').value = data.settings.notifyTime || '21:00';
-          document.getElementById('notifyToggle').classList.toggle('on', !!data.settings.notifyEnabled);
-          renderHome(); renderCalendarGrid();
-          showToast('Googleドライブの記録を読み込みました');
-        } else if(remoteCount > 0){
-          const useRemote = confirm('Googleドライブに以前の記録があります。ドライブの内容を使いますか？（キャンセルするとこの端末の記録をドライブに保存します）');
-          if(useRemote){
-            data = remote;
-            if(!data.settings) data.settings = { notifyTime:'21:00', notifyEnabled:false, lastNotifiedDate:null };
-            data.settings.driveConnected = true;
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-            simulate();
-            document.getElementById('notifyTime').value = data.settings.notifyTime || '21:00';
-            document.getElementById('notifyToggle').classList.toggle('on', !!data.settings.notifyEnabled);
-            renderHome(); renderCalendarGrid();
-          } else {
-            await driveUpload(driveFileId, data);
-          }
-        } else {
-          await driveUpload(driveFileId, data);
-        }
-      } else {
-        driveFileId = await driveUpload(null, data);
-      }
-      showToast('Googleドライブと同期しました');
-    }catch(e){
-      console.error(e);
-      showToast('同期でエラーが発生しました');
-    }
-  }
-
-  function initGoogle(){
-    if(!(window.google && google.accounts && google.accounts.oauth2)){
-      setTimeout(initGoogle, 300);
-      return;
-    }
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope: DRIVE_SCOPE,
-      callback: async (resp)=>{
-        if(resp.error){
-          showToast('Google連携に失敗しました');
-          return;
-        }
-        accessToken = resp.access_token;
-        data.settings.driveConnected = true;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        updateDriveUI();
-        await syncWithDrive();
-      }
-    });
-    if(data.settings.driveConnected){
-      tokenClient.requestAccessToken({ prompt:'' });
-    }
-  }
-
-  document.getElementById('btnDriveConnect').addEventListener('click', ()=>{
-    if(!tokenClient){
-      showToast('読み込み中です。少し待ってからもう一度押してください');
-      return;
-    }
-    tokenClient.requestAccessToken({ prompt: accessToken ? '' : 'consent' });
-  });
 
   function showToast(msg, duration){
     const t = document.getElementById('toast');
@@ -1011,18 +1016,51 @@
   }
   // サーバー側のスケジュール送信(Netlify Functions)に一本化したため、ここでの定期チェックは行いません。
 
+  /* ---------- Help overlay ---------- */
+  document.getElementById('btnHelp').addEventListener('click', ()=>{
+    document.getElementById('helpOverlay').classList.add('show');
+  });
+  document.getElementById('helpClose').addEventListener('click', ()=>{
+    document.getElementById('helpOverlay').classList.remove('show');
+  });
+  document.getElementById('helpOverlay').addEventListener('click', (e)=>{
+    if(e.target.id === 'helpOverlay') document.getElementById('helpOverlay').classList.remove('show');
+  });
+  document.querySelectorAll('.help-tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.help-tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.help-page').forEach(p=>{
+        p.hidden = (p.dataset.helpPage !== btn.dataset.help);
+      });
+    });
+  });
+
+  /* ---------- Install banner ---------- */
+  function isStandalone(){
+    return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+  function initInstallBanner(){
+    if(isStandalone()) return;
+    if(localStorage.getItem('pill-tracker-install-banner-dismissed')) return;
+    document.getElementById('installBanner').classList.add('show');
+  }
+  document.getElementById('installBannerClose').addEventListener('click', ()=>{
+    document.getElementById('installBanner').classList.remove('show');
+    localStorage.setItem('pill-tracker-install-banner-dismissed', '1');
+  });
+
   /* ---------- Init ---------- */
   async function init(){
     await load();
     document.getElementById('notifyTime').value = data.settings.notifyTime || '21:00';
     document.getElementById('notifyToggle').classList.toggle('on', !!data.settings.notifyEnabled);
-    updateDriveUI();
     simulate();
     renderHome();
     renderCalendarHead();
     renderCalendarGrid();
-    initGoogle();
     registerServiceWorker();
+    initInstallBanner();
   }
   init();
 })();
