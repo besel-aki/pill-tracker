@@ -149,6 +149,7 @@
   .pill-btn:active{ transform:scale(.96); }
   .pill-btn.primary{ background:var(--violet); color:#fff; }
   .pill-btn.primary.done{ background:var(--violet-soft); color:var(--violet-deep); }
+  .pill-btn:disabled{ background:var(--rest-soft); color:var(--ink-faint); cursor:not-allowed; }
   .pill-btn.ghost{ background:var(--pink-soft); color:#9C2C5E; }
   .pill-btn.ghost.done{ background:var(--pink); color:#fff; }
 
@@ -561,7 +562,7 @@
           lastRestEnd = ds;
         }
       } else {
-        dosingStreak = rec.taken ? dosingStreak+1 : 0;
+        dosingStreak = dosingStreak + 1; // 服用の有無に関わらず、周期の日数として進める
         bleedingStreak = rec.bleeding ? bleedingStreak+1 : 0;
         dayStates[ds] = { mode:'dosing', dosingStreak, bleedingStreak, restDayCount:0 };
         if(dosingStreak >= 120 || bleedingStreak >= 3){
@@ -586,6 +587,9 @@
     const btnBleed = document.getElementById('btnBleed');
     btnTaken.textContent = todayRec.taken ? '飲んだ ✓' : '今日、飲んだ';
     btnTaken.classList.toggle('done', !!todayRec.taken);
+    const todayIsResting = !!(sim && sim.todayState && sim.todayState.mode === 'resting');
+    btnTaken.disabled = todayIsResting;
+    if(todayIsResting) btnTaken.textContent = '休薬期間中';
     btnBleed.textContent = todayRec.bleeding ? '出血あり ✓' : '出血あり';
     btnBleed.classList.toggle('done', !!todayRec.bleeding);
 
