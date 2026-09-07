@@ -29,9 +29,10 @@ exports.handler = async (event) => {
     const existing = await store.get(id, { type: 'json' });
     const timeChanged = !existing || existing.notifyTime !== notifyTime;
     await store.setJSON(id, {
+      ...existing,
       subscription,
       notifyTime,
-      lastSentDate: timeChanged ? null : existing.lastSentDate
+      lastSentDate: timeChanged ? null : (existing ? existing.lastSentDate : null)
     });
     return { statusCode: 200, body: JSON.stringify({ ok: true }) };
   } catch (e) {
