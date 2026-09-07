@@ -607,6 +607,19 @@
     for(let i=0;i<raw.length;i++) arr[i] = raw.charCodeAt(i);
     return arr;
   }
+  async function syncMode(){
+    if(!data.settings.notifyEnabled) return;
+    try{
+      const mode = (sim && sim.todayState) ? sim.todayState.mode : 'dosing';
+      await fetch('/.netlify/functions/update-mode', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ id:getDeviceId(), mode })
+      });
+    }catch(e){
+      console.error('syncMode failed', e);
+    }
+  }
   async function subscribeForPush(){
     try{
       if(!('serviceWorker' in navigator) || !('PushManager' in window)) return;
@@ -697,6 +710,18 @@
         }
       }
       cur.setDate(cur.getDate()+1);
+    }
+    // 休薬期間中なら、残りの日数(未来分)もカレンダー表示用に先読みしておく
+    if(mode === 'resting' && restDayCount > 0){
+      let futureCur = new Date(endDate);
+      futureCur.setDate(futureCur.getDate()+1);
+      let futureRestCount = restDayCount;
+      while(futureRestCount < 4){
+        futureRestCount++;
+        const ds = fmt(futureCur);
+        dayStates[ds] = { mode:'resting', restDayCount:futureRestCount, dosingStreak:0, bleedingStreak:0, projected:true };
+        futureCur.setDate(futureCur.getDate()+1);
+      }
     }
     sim = { dayStates, start, mode, totalTaken, lastRestEnd, todayState: dayStates[today] || null };
   }
@@ -857,6 +882,7 @@
     if(!data.records[today]) data.records[today] = { taken:false, bleeding:false };
     data.records[today][field] = !data.records[today][field];
     simulate(); save(); renderHome();
+    syncMode();
   }
   document.getElementById('btnTaken').addEventListener('click', ()=>toggleRecord('taken'));
   document.getElementById('btnBleed').addEventListener('click', ()=>toggleRecord('bleeding'));
@@ -875,6 +901,7 @@
     data.records[selectedDate].taken = !data.records[selectedDate].taken;
     this.classList.toggle('on');
     simulate(); save(); renderCalendarGrid(); renderHome();
+    if(selectedDate === todayStr()) syncMode();
   });
   document.getElementById('editBleed').addEventListener('click', function(){
     if(!selectedDate) return;
@@ -882,6 +909,7 @@
     data.records[selectedDate].bleeding = !data.records[selectedDate].bleeding;
     this.classList.toggle('on');
     simulate(); save(); renderCalendarGrid(); renderHome();
+    if(selectedDate === todayStr()) syncMode();
   });
 
   document.getElementById('notifyTime').addEventListener('change', function(){
@@ -1061,6 +1089,7 @@
     renderCalendarGrid();
     registerServiceWorker();
     initInstallBanner();
+    syncMode();
   }
   init();
 })();
