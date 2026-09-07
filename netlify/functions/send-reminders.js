@@ -25,9 +25,13 @@ const runReminders = async (event) => {
     const diff = Math.abs(currentMinutes - targetMinutes);
     if (diff <= 3 && record.lastSentDate !== todayStr) {
       try {
+        const mode = record.mode || 'dosing';
+        const body = mode === 'resting'
+          ? '休薬期間中です。'
+          : 'お薬の時間です。アプリを開いて記録しましょう。';
         await webpush.sendNotification(
           record.subscription,
-          JSON.stringify({ title: 'ピルトラッカー', body: 'お薬の時間です。アプリを開いて記録しましょう。' })
+          JSON.stringify({ title: 'ピルトラッカー', body })
         );
         record.lastSentDate = todayStr;
         await store.setJSON(b.key, record);
