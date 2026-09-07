@@ -711,6 +711,18 @@
       }
       cur.setDate(cur.getDate()+1);
     }
+    // 休薬期間中なら、残りの日数(未来分)もカレンダー表示用に先読みしておく
+    if(mode === 'resting' && restDayCount > 0){
+      let futureCur = new Date(endDate);
+      futureCur.setDate(futureCur.getDate()+1);
+      let futureRestCount = restDayCount;
+      while(futureRestCount < 4){
+        futureRestCount++;
+        const ds = fmt(futureCur);
+        dayStates[ds] = { mode:'resting', restDayCount:futureRestCount, dosingStreak:0, bleedingStreak:0, projected:true };
+        futureCur.setDate(futureCur.getDate()+1);
+      }
+    }
     sim = { dayStates, start, mode, totalTaken, lastRestEnd, todayState: dayStates[today] || null };
   }
 
