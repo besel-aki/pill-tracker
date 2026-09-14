@@ -515,6 +515,14 @@
         <button class="pill-btn ghost" id="btnImport" style="flex:1;">読み込む</button>
       </div>
       <input type="file" id="importFile" accept="application/json" style="display:none;">
+      <div class="toggle-line" style="margin-top:16px; padding-top:16px; border-top:1px solid var(--line);">
+        <div>
+          <div class="label" style="margin-bottom:2px;">自動バックアップ</div>
+          <div class="desc" id="autoBackupStatus" style="margin-top:0;">オフ</div>
+        </div>
+        <button class="switch" id="autoBackupToggle"><span class="knob"></span></button>
+      </div>
+      <div class="desc" style="margin-top:8px;">オンにすると、記録が変わるたびに指定したファイルへ自動で上書き保存します(同じファイルを選べば「(1)」のような連番は増えません)。</div>
     </div>
     <div class="set-card">
       <div class="label" style="margin-bottom:4px;">このアプリについて</div>
@@ -591,6 +599,91 @@
 (function(){
   const STORAGE_KEY = 'pill-tracker-data';
   const VAPID_PUBLIC_KEY = 'BNyfKl3OZyrSevZfutaad6NZijWwq94ELbY3mv7dfWBbp7qGYZII464F-TrED2sEwCsfnfko0T-uDTfY6uPOdek';
+  /* ---------- 自動バックアップ(File System Access API) ---------- */
+  function idbOpen(){
+    return new Promise((resolve, reject)=>{
+      const req = indexedDB.open('pill-tracker-fs', 1);
+      req.onupgradeneeded = ()=>{ req.result.createObjectStore('handles'); };
+      req.onsuccess = ()=>resolve(req.result);
+      req.onerror = ()=>reject(req.error);
+    });
+  }
+  async function idbSet(key, value){
+    const db = await idbOpen();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction('handles', 'readwrite');
+      tx.objectStore('handles').put(value, key);
+      tx.oncomplete = ()=>resolve();
+      tx.onerror = ()=>reject(tx.error);
+    });
+  }
+  async function idbGet(key){
+    const db = await idbOpen();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction('handles', 'readonly');
+      const req = tx.objectStore('handles').get(key);
+      req.onsuccess = ()=>resolve(req.result || null);
+      req.onerror = ()=>reject(req.error);
+    });
+  }
+  function fsApiSupported(){
+    return 'showSaveFilePicker' in window;
+  }
+  async function setupAutoBackupFile(){
+    const handle = await window.showSaveFilePicker({
+      suggestedName: 'pill-tracker-backup.json',
+      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+    });
+    await idbSet('autoBackupHandle', handle);
+    return handle;
+  }
+  async function writeAutoBackup(){
+    try{
+      const handle = await idbGet('autoBackupHandle');
+      if(!handle) return;
+      const perm = await handle.queryPermission({ mode:'readwrite' });
+      if(perm !== 'granted'){
+        const req = await handle.requestPermission({ mode:'readwrite' });
+        if(req !== 'granted') return;
+      }
+      const writable = await handle.createWritable();
+      await writable.write(JSON.stringify(data, null, 2));
+      await writable.close();
+    }catch(e){
+      console.error('auto backup write failed', e);
+    }
+  }
+  function updateAutoBackupUI(){
+    const statusEl = document.getElementById('autoBackupStatus');
+    const toggleEl = document.getElementById('autoBackupToggle');
+    if(!fsApiSupported()){
+      statusEl.textContent = 'お使いのブラウザは非対応です';
+      toggleEl.disabled = true;
+      return;
+    }
+    toggleEl.classList.toggle('on', !!data.settings.autoBackupEnabled);
+    statusEl.textContent = data.settings.autoBackupEnabled ? 'オン(記録の変更時に自動保存)' : 'オフ';
+  }
+  document.getElementById('autoBackupToggle').addEventListener('click', async ()=>{
+    if(!fsApiSupported()) return;
+    if(!data.settings.autoBackupEnabled){
+      try{
+        await setupAutoBackupFile();
+        data.settings.autoBackupEnabled = true;
+        await save();
+        updateAutoBackupUI();
+        showToast('自動バックアップを設定しました');
+      }catch(e){
+        console.error(e);
+      }
+    } else {
+      data.settings.autoBackupEnabled = false;
+      await save();
+      updateAutoBackupUI();
+      showToast('自動バックアップをオフにしました');
+    }
+  });
+
   function getDeviceId(){
     let id = localStorage.getItem('pill-tracker-device-id');
     if(!id){
@@ -674,6 +767,9 @@
   async function save(){
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
     catch(e){ console.error('save failed', e); }
+    if(data.settings.autoBackupEnabled){
+      writeAutoBackup();
+    }
   }
 
   function simulate(){
@@ -990,6 +1086,7 @@
         document.getElementById('notifyTime').value = data.settings.notifyTime || '21:00';
         document.getElementById('notifyToggle').classList.toggle('on', !!data.settings.notifyEnabled);
         renderHome(); renderCalendarHead(); renderCalendarGrid();
+        updateAutoBackupUI();
         showToast('読み込みました');
       }catch(err){
         showToast('ファイルを読み込めませんでした');
@@ -1090,6 +1187,7 @@
     registerServiceWorker();
     initInstallBanner();
     syncMode();
+    updateAutoBackupUI();
   }
   init();
 })();
