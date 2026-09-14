@@ -640,17 +640,25 @@
   async function writeAutoBackup(){
     try{
       const handle = await idbGet('autoBackupHandle');
-      if(!handle) return;
+      if(!handle){
+        showToast('自動バックアップ: 保存先が見つかりません');
+        return;
+      }
       const perm = await handle.queryPermission({ mode:'readwrite' });
       if(perm !== 'granted'){
         const req = await handle.requestPermission({ mode:'readwrite' });
-        if(req !== 'granted') return;
+        if(req !== 'granted'){
+          showToast('自動バックアップ: 書き込み許可がありません');
+          return;
+        }
       }
       const writable = await handle.createWritable();
       await writable.write(JSON.stringify(data, null, 2));
       await writable.close();
+      showToast('自動バックアップを保存しました');
     }catch(e){
       console.error('auto backup write failed', e);
+      showToast('自動バックアップに失敗: ' + (e && e.message ? e.message : String(e)), 6000);
     }
   }
   function updateAutoBackupUI(){
