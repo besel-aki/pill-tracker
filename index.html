@@ -655,10 +655,8 @@
       const writable = await handle.createWritable();
       await writable.write(JSON.stringify(data, null, 2));
       await writable.close();
-      showToast('自動バックアップを保存しました');
     }catch(e){
       console.error('auto backup write failed', e);
-      showToast('自動バックアップに失敗: ' + (e && e.message ? e.message : String(e)), 6000);
     }
   }
   function updateAutoBackupUI(){
