@@ -522,7 +522,7 @@
         </div>
         <button class="switch" id="autoBackupToggle"><span class="knob"></span></button>
       </div>
-      <div class="desc" style="margin-top:8px;">オンにすると、記録が変わるたびに指定したファイルへ自動で上書き保存します(同じファイルを選べば「(1)」のような連番は増えません)。</div>
+      <div class="desc" style="margin-top:8px;">オンにすると、2週間に1回程度、指定したファイルへ自動で上書き保存します(同じファイルを選べば「(1)」のような連番は増えません)。</div>
     </div>
     <div class="set-card">
       <div class="label" style="margin-bottom:4px;">このアプリについて</div>
@@ -774,7 +774,13 @@
     try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
     catch(e){ console.error('save failed', e); }
     if(data.settings.autoBackupEnabled){
-      writeAutoBackup();
+      const AUTO_BACKUP_INTERVAL_MS = 14 * 24 * 60 * 60 * 1000; // 2週間
+      const last = data.settings.lastAutoBackupAt || 0;
+      if(Date.now() - last >= AUTO_BACKUP_INTERVAL_MS){
+        data.settings.lastAutoBackupAt = Date.now();
+        try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch(e){}
+        writeAutoBackup();
+      }
     }
   }
 
