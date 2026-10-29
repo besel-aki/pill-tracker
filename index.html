@@ -696,7 +696,42 @@
       id = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+Math.random().toString(16).slice(2));
       localStorage.setItem('pill-tracker-device-id', id);
     }
+    // Service WorkerはlocalStorageを読めないため、通知の「飲んだ」ボタン用に
+    // IndexedDB(既存のautoBackupHandleと同じDB)にも端末IDを複製しておく
+    idbSet('deviceId', id).catch(()=>{});
     return id;
+  }
+  async function syncPendingTaken(){
+    try{
+      const id = getDeviceId();
+      const res = await fetch('/.netlify/functions/sync-taken', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ id })
+      });
+      if(!res.ok) return;
+      const { dates } = await res.json();
+      applyTakenDates(dates);
+    }catch(e){
+      console.error('syncPendingTaken failed', e);
+    }
+  }
+  function applyTakenDates(dates){
+    if(!Array.isArray(dates) || dates.length === 0) return;
+    let changed = false;
+    for(const d of dates){
+      if(!data.records[d]) data.records[d] = { taken:false, bleeding:false };
+      if(!data.records[d].taken){
+        data.records[d].taken = true;
+        changed = true;
+      }
+    }
+    if(changed){
+      save();
+      simulate();
+      renderHome(); renderCalendarHead(); renderCalendarGrid();
+      showToast('通知からの服用記録を反映しました');
+    }
   }
   function urlBase64ToUint8Array(base64String){
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -1119,6 +1154,11 @@
   function registerServiceWorker(){
     if('serviceWorker' in navigator){
       navigator.serviceWorker.register('sw.js').catch(err=>console.error('SW register failed', err));
+      navigator.serviceWorker.addEventListener('message', (event)=>{
+        if(event.data && event.data.type === 'pill-taken-from-notification'){
+          applyTakenDates([event.data.date]);
+        }
+      });
     }
   }
 
@@ -1199,6 +1239,7 @@
     registerServiceWorker();
     initInstallBanner();
     syncMode();
+    syncPendingTaken();
     updateAutoBackupUI();
   }
   init();

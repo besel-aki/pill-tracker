@@ -31,7 +31,7 @@ const runReminders = async (event) => {
           : 'お薬の時間です。アプリを開いて記録しましょう。';
         await webpush.sendNotification(
           record.subscription,
-          JSON.stringify({ title: 'ピルトラッカー', body })
+          JSON.stringify({ title: 'ピルトラッカー', body, mode })
         );
         record.lastSentDate = todayStr;
         await store.setJSON(b.key, record);
